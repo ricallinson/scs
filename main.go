@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/buger/goterm"
 	"github.com/nfnt/resize"
@@ -11,7 +12,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"time"
-	"flag"
+)
+
+const (
+	apiKey = "d6d164a9fc70717b82c3d2b65847d870"
 )
 
 type PhotoGroup struct {
@@ -22,7 +26,7 @@ type Photos struct {
 	Page    int8    `json:"page"`
 	Pages   int8    `json:"pages"`
 	PerPage int8    `json:"perpage"`
-	Total   string    `json:"total"`
+	Total   string  `json:"total"`
 	Photo   []Photo `json:"photo"`
 	Stat    []Photo `json:"stat"`
 }
@@ -41,7 +45,6 @@ type Photo struct {
 
 func GetFlickrImages(uid string) []string {
 	images := []string{}
-	apiKey := "d6d164a9fc70717b82c3d2b65847d870"
 	resp, err := http.Get("https://api.flickr.com/services/rest/?method=flickr.people.getPublicPhotos&api_key=" + apiKey + "&user_id=" + uid + "&format=json&nojsoncallback=1")
 	if err != nil {
 		fmt.Println(err)
@@ -96,13 +99,16 @@ func PrintImageFromUrl(url string) {
 
 func main() {
 	var flickr string
-	flag.StringVar(&flickr, "flickr", "", "Flickr user id") // "50566068%40N00"
 	var wait int
-	flag.IntVar(&wait, "wait", 5, "Number of seconds between each image") // "50566068%40N00"
+	flag.StringVar(&flickr, "flickr", "", "Flickr user id") // "50566068%40N00"
+	flag.IntVar(&wait, "wait", 5, "Number of seconds between each image")
 	flag.Parse()
 	urls := []string{}
 	if len(flickr) > 0 {
-		urls = append(urls, GetFlickrImages(flickr)...)
+		fmt.Print("Searching flickr")
+		newUrls := GetFlickrImages(flickr)
+		fmt.Println(",", len(newUrls), "images found.")
+		urls = append(urls, newUrls...)
 	}
 	for _, url := range urls {
 		PrintImageFromUrl(url)
