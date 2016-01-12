@@ -22,7 +22,7 @@ type Photos struct {
 	Page    int8    `json:"page"`
 	Pages   int8    `json:"pages"`
 	PerPage int8    `json:"perpage"`
-	Total   int8    `json:"total"`
+	Total   string    `json:"total"`
 	Photo   []Photo `json:"photo"`
 	Stat    []Photo `json:"stat"`
 }
@@ -40,16 +40,25 @@ type Photo struct {
 }
 
 func GetFlickrImages(uid string) []string {
-	resp, err := http.Get("https://api.flickr.com/services/rest/?method=flickr.people.getPublicPhotos&api_key=704949878404411a49e352c332f7198a&user_id=" + uid + "&format=json&nojsoncallback=1")
+	images := []string{}
+	apiKey := "d6d164a9fc70717b82c3d2b65847d870"
+	resp, err := http.Get("https://api.flickr.com/services/rest/?method=flickr.people.getPublicPhotos&api_key=" + apiKey + "&user_id=" + uid + "&format=json&nojsoncallback=1")
 	if err != nil {
 		fmt.Println(err)
-		return []string{}
+		return images
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err)
+		return images
+	}
 	var photos PhotoGroup
-	json.Unmarshal(body, &photos)
-	images := []string{}
+	err = json.Unmarshal(body, &photos)
+	if err != nil {
+		fmt.Println(err)
+		return images
+	}
 	for _, photo := range photos.Photos.Photo {
 		images = append(images, fmt.Sprintf("https://farm%d.staticflickr.com/%s/%s_%s.jpg\n", photo.Farm, photo.Server, photo.Id, photo.Secret))
 	}
@@ -88,6 +97,8 @@ func PrintImageFromUrl(url string) {
 func main() {
 	var flickr string
 	flag.StringVar(&flickr, "flickr", "", "Flickr user id") // "50566068%40N00"
+	var wait int
+	flag.IntVar(&wait, "wait", 5, "Number of seconds between each image") // "50566068%40N00"
 	flag.Parse()
 	urls := []string{}
 	if len(flickr) > 0 {
@@ -95,6 +106,6 @@ func main() {
 	}
 	for _, url := range urls {
 		PrintImageFromUrl(url)
-		time.Sleep(5000 * time.Millisecond)
+		time.Sleep(time.Duration(wait) * time.Second)
 	}
 }
