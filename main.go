@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"time"
+	"errors"
 )
 
 const (
@@ -20,6 +21,8 @@ const (
 
 type PhotoGroup struct {
 	Photos Photos `json:"photos"`
+	Stat    string  `json:"stat"`
+	Message    string  `json:"message"`
 }
 
 type Photos struct {
@@ -28,7 +31,6 @@ type Photos struct {
 	PerPage int8    `json:"perpage"`
 	Total   string  `json:"total"`
 	Photo   []Photo `json:"photo"`
-	Stat    []Photo `json:"stat"`
 }
 
 type Photo struct {
@@ -43,29 +45,26 @@ type Photo struct {
 	IsFamily int8   `json:"isfamily"`
 }
 
-func GetFlickrImages(uid string) []string {
+func GetFlickrImages(uid string) ([]string, error) {
 	images := []string{}
 	resp, err := http.Get("https://api.flickr.com/services/rest/?method=flickr.people.getPublicPhotos&api_key=" + apiKey + "&user_id=" + uid + "&format=json&nojsoncallback=1")
 	if err != nil {
-		fmt.Println(err)
-		return images
+		return images, err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println(err)
-		return images
+		return images, err
 	}
 	var photos PhotoGroup
-	err = json.Unmarshal(body, &photos)
-	if err != nil {
-		fmt.Println(err)
-		return images
+	json.Unmarshal(body, &photos)
+	if photos.Stat != "ok" {
+		return images, errors.New(photos.Message)
 	}
 	for _, photo := range photos.Photos.Photo {
 		images = append(images, fmt.Sprintf("https://farm%d.staticflickr.com/%s/%s_%s.jpg\n", photo.Farm, photo.Server, photo.Id, photo.Secret))
 	}
-	return images
+	return images, nil
 }
 
 func PrintImage(img image.Image) {
@@ -94,6 +93,9 @@ func PrintImageFromUrl(url string) {
 	}
 	defer resp.Body.Close()
 	img, _, err := image.Decode(resp.Body)
+	if err != nil {
+		fmt.Print(err)
+	}
 	PrintImage(img)
 }
 
@@ -106,9 +108,13 @@ func main() {
 	urls := []string{}
 	if len(flickr) > 0 {
 		fmt.Print("Searching flickr")
-		newUrls := GetFlickrImages(flickr)
-		fmt.Println(",", len(newUrls), "images found.")
-		urls = append(urls, newUrls...)
+		newUrls, err := GetFlickrImages(flickr)
+		if err != nil {
+			fmt.Println(". Error:", err)
+		} else {
+			fmt.Println(",", len(newUrls), "images found.")
+			urls = append(urls, newUrls...)
+		}
 	}
 	for _, url := range urls {
 		PrintImageFromUrl(url)
